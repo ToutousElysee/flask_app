@@ -1,108 +1,69 @@
 pipeline {
-  agent {
-    kubernetes {
-      yaml '''
-        apiVersion: v1
-        kind: Pod
-        metadata:
-          labels:
-            app: jenkins-agent
-        spec:
-          containers:
-          - name: jnlp
-            image: jenkins/inbound-agent:3307.v632ed11b_3a_c7-2
-          - name: python
-            image: python:3.9-slim
-            command: ["sleep", "infinity"]
-            tty: true
-          - name: docker
-            image: docker:24.0-cli
-            command: ["sleep", "infinity"]
-            tty: true
-            volumeMounts:
-              - name: docker-sock
-                mountPath: /var/run/docker.sock
-          volumes:
-            - name: docker-sock
-              hostPath:
-                path: /var/run/docker.sock
-        '''
-    }
-  }
-  environment {
-    DOCKER_REGISTRY = 'docker.io'
-    DOCKER_IMAGE = 'flask_hello'
-    KUBE_NAMESPACE = 'jenkins'
-  }
+  agent any
+
   stages {
-    stage('Checkout Code') {
+    stage('Clone repository') {
       steps {
-        container('jnlp') {
-          checkout scm
-        }
-      }
-    }
-    
-    stage('Install Dependencies') {
-      steps {
-        container('python') {
-          sh 'pip install -r requirements.txt'
-        }
+        checkout scm
       }
     }
 
-    stage('Run Tests') {
+    stage('Install Python3.10') {
       steps {
-        container('python') {
-          sh 'python test.py --verbose'
-        }
+        sh '''
+            # Mise à jour et installation des dépendances
+          sudo apt-get update -y
+          sudo apt-get install -y software-properties-common
+          
+          # Ajout du repository pour Python 3.10
+          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          sudo apt-get update -y
+          
+          # Installation de Python 3.10 et pip
+          sudo apt-get install -y python3.10 python3.10-distutils
+          curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
+          
+          # Création des alias système
+          sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+          sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.10 2
+          sudo ln -sf /usr/bin/python3.10 /usr/local/bin/python
+          sudo ln -sf /usr/local/bin/pip /usr/local/bin/pip3.10
+          
+          # Vérification de la version
+          python --version
+          pip --version
+        '''
       }
     }
 
-    stage('Build Docker Image') {
+    stage('Install Python deps') {
       steps {
-        container('docker') {
-          script {
-            withCredentials([usernamePassword(
-              credentialsId: 'docker-creds',
-              usernameVariable: 'DOCKER_USER',
-              passwordVariable: 'DOCKER_PASS'
-            )]) {
-              sh """
-                docker login -u $DOCKER_USER -p $DOCKER_PASS $DOCKER_REGISTRY
-                docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE:${env.BUILD_NUMBER} .
-                docker push $DOCKER_REGISTRY/$DOCKER_IMAGE:${env.BUILD_NUMBER}
-              """
-            }
-          }
-        }
+        sh 'pip install -r requirements.txt'
+      }
+    }
+
+    stage('Run unit tests') {
+      steps {
+        sh 'python test.py --verbose'
+      }
+    }
+
+    stage('Build Docker image') {
+      steps {
+        sh 'docker build -t localhost:4000/flask_hello:$BUILD_NUMBER .'
+        sh 'docker push localhost:4000/flask_hello:$BUILD_NUMBER'
       }
     }
 
     stage('Deploy to Kubernetes') {
       steps {
-        container('docker') {
-          script {
-            withCredentials([kubeconfigFile(
-              credentialsId: 'kubeconfig-cred',
-              variable: 'KUBECONFIG'
-            )]) {
-              sh """
-                kubectl set image deployment/flask-app \
-                  flask-app=$DOCKER_REGISTRY/$DOCKER_IMAGE:${env.BUILD_NUMBER} \
-                  --namespace $KUBE_NAMESPACE
-              """
-            }
-          }
-        }
+        sh 'kubectl apply -f ./kubernetes/deployment.yaml'
+        sh 'kubectl apply -f ./kubernetes/service.yaml'
       }
     }
   }
-  post {
-    always {
-      container('jnlp') {
-        cleanWs()
-      }
-    }
+
+  triggers {
+    pollSCM('* * * * *') // Vérifie les changements git toutes les minutes
   }
 }
