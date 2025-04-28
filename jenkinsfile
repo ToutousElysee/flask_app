@@ -1,6 +1,20 @@
 pipeline {
-  agent any
-
+  agent {
+    kubernetes {
+      label 'jenkins-agent-flask'
+      yaml """
+            apiVersion: v1
+            kind: Pod
+            spec:
+                containers:
+                    - name: python
+                    image: python:3.10
+                    command:
+                        - cat
+                    tty: true
+        """
+    }
+  }
   stages {
     stage('Clone repository') {
       steps {
@@ -8,15 +22,19 @@ pipeline {
       }
     }
 
-    stage('Install Python deps') {
-      steps {
-        sh 'pip install -r requirements.txt'
-      }
-    }
+  stage('Install Python deps') {
+   steps {
+    container('python') {
+      sh 'pip install -r requirements.txt'
+     }
+   }
+  }
 
     stage('Run unit tests') {
       steps {
-        sh 'python test.py --verbose'
+        container('python') {
+            sh 'python test.py --verbose'
+        }
       }
     }
 
