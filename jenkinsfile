@@ -1,47 +1,38 @@
 pipeline {
-  agent any
+  agent {
+    kubernetes {
+      yaml '''
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          labels:
+            component: ci 
+        spec:
+          containers:
+          - name: python
+            image: python:3.10
+            command: 
+                - cat
+            tty: true
+        '''
+    }
+  }
 
   stages {
-    stage('Clone repository') {
+    stage('Install Dependencies') {
       steps {
-        checkout scm
-      }
-    }
-
-    stage('Install Python deps') {
-        steps {
-            sh '''
-            sudo apt-get update && \
-            sudo apt-get install -y python3 python3-pip && \
-            ln -s /usr/bin/python3 /usr/bin/python && \
-            ln -s /usr/bin/pip3 /usr/bin/pip
-            pip install -r requirements.txt
-            '''
+        container('python') {
+          sh 'pip install -r requirements.txt'
         }
+      }
     }
 
     stage('Run unit tests') {
       steps {
-        sh 'python test.py --verbose'
+        container('python') {
+          sh 'python test.py --verbose'
+        }
       }
     }
-
-    stage('Build Docker image') {
-      steps {
-        sh 'docker build -t localhost:4000/flask_hello:$BUILD_NUMBER .'
-        sh 'docker push localhost:4000/flask_hello:$BUILD_NUMBER'
-      }
-    }
-
-    stage('Deploy to Kubernetes') {
-      steps {
-        sh 'kubectl apply -f ./kubernetes/deployment.yaml'
-        sh 'kubectl apply -f ./kubernetes/service.yaml'
-      }
-    }
-  }
-
-  triggers {
-    pollSCM('* * * * *') // Vérifie les changements git toutes les minutes
   }
 }
