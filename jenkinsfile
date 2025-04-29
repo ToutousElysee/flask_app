@@ -58,8 +58,8 @@ pipeline {
     stage('Build Docker image') {
         steps {
             container('docker') {
-                sh 'docker build -t 192.168.49.2:59403/flask_hello:latest .'
-                sh 'docker push 192.168.49.2:59403/flask_hello:latest'
+                sh 'docker build -t 127.0.0.1:59403/flask_hello:latest .'
+                sh 'docker push 127.0.0.1:59403/flask_hello:latest'
             }
         }
     }
