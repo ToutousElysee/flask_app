@@ -9,21 +9,18 @@ pipeline {
                 containers:
                     - name: python
                       image: python:3.10
-                      command:
-                        - cat
+                      command: ['cat']
                       tty: true
                     - name: docker
                       image: docker:latest
-                      command:
-                        - cat
+                      command: ['cat']
                       tty: true
                       volumeMounts:
                         - name: docker-sock
                           mountPath: /var/run/docker.sock
                     - name: kubectl
                       image: lachlanevenson/k8s-kubectl:latest
-                      command:
-                        - cat
+                      command: ['cat']
                       tty: true
                 volumes:
                     - name: docker-sock
@@ -32,6 +29,12 @@ pipeline {
         """
     }
   }
+
+  environment {
+    REGISTRY = '192.168.49.2:30376' // ← remplace si IP ou port change
+    IMAGE = "${env.REGISTRY}/flask_hello:${env.BUILD_NUMBER}"
+  }
+
   stages {
     stage('Clone repository') {
       steps {
@@ -58,8 +61,10 @@ pipeline {
     stage('Build Docker image') {
         steps {
             container('docker') {
-                sh 'docker build -t 192.168.49.2:31155/flask_hello:latest .'
-                sh 'docker push 192.168.49.2:31155/flask_hello:latest'
+              sh "docker build -t ${IMAGE} ."
+              sh "docker push ${IMAGE}"
+              sh "docker tag ${IMAGE} ${REGISTRY}/flask_hello:latest"
+              sh "docker push ${REGISTRY}/flask_hello:latest"
             }
         }
     }
@@ -67,8 +72,8 @@ pipeline {
     stage('Deploy to Kubernetes') {
         steps {
             container('kubectl') { 
-                sh 'kubectl delete deployment flask_hello || true'
-                sh 'kubectl delete service flask_hello || true'
+                sh 'kubectl delete deployment flask-hello || true'
+                sh 'kubectl delete service flask-hello || true'
                 sh 'kubectl apply -f kubernetes/deployment.yaml'
                 sh 'kubectl apply -f kubernetes/service.yaml'
             }
