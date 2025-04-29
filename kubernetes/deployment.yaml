@@ -1,19 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: flask-hello
+  name: registry
+  namespace: docker-registry
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: flask-hello
+      app: flask_hello
   template:
     metadata:
       labels:
-        app: flask-hello
+        app: flask_hello
     spec:
       containers:
-      - name: flask-hello
+      - name: flask_hello
         image: 192.168.49.2:31155/flask_hello:latest
         ports:
         - containerPort: 5000
