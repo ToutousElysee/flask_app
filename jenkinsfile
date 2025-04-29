@@ -31,7 +31,7 @@ pipeline {
   }
 
   environment {
-    REGISTRY = '127.0.0.1:49452' // ← remplace si IP ou port change
+    REGISTRY = '192.168.49.2:30376' // ← remplace si IP ou port change
     IMAGE = "${env.REGISTRY}/flask_hello:${env.BUILD_NUMBER}"
   }
 
