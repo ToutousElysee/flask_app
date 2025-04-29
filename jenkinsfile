@@ -12,7 +12,7 @@ pipeline {
                       command: ['cat']
                       tty: true
                     - name: docker
-                      image: buildpack-deps:bullseye
+                      image: docker:24.0-cli
                       command: ['cat']
                       tty: true
                       volumeMounts:
