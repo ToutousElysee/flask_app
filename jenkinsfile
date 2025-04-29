@@ -36,6 +36,17 @@ pipeline {
   }
 
   stages {
+
+    stage('Where am I?') {
+      steps {
+        container('docker') {
+          sh 'hostname'
+          sh 'curl http://192.168.49.2:30376/v2/_catalog || echo "Échec du curl"'
+          sh 'docker info'
+        }
+      }
+    }
+
     stage('Clone repository') {
       steps {
         checkout scm
