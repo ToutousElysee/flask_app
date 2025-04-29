@@ -12,7 +12,7 @@ pipeline {
                       command: ['cat']
                       tty: true
                     - name: docker
-                      image: docker:24.0-cli
+                      image: docker:latest
                       command: ['cat']
                       tty: true
                       volumeMounts:
@@ -36,6 +36,14 @@ pipeline {
   }
 
   stages {
+
+    stage('Setup docker env') {
+      steps {
+        container('docker') {
+          sh 'apk add --no-cache curl'
+        }
+      }
+    }
 
     stage('Where am I?') {
       steps {
