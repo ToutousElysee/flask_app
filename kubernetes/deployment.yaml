@@ -6,14 +6,14 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: flask_hello
+      app: flask-hello
   template:
     metadata:
       labels:
-        app: flask_hello
+        app: flask-hello
     spec:
       containers:
-      - name: flask_hello
+      - name: flask-hello
         image: 192.168.49.2:30376/flask_hello:latest
         ports:
         - containerPort: 5000
